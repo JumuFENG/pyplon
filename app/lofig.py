@@ -43,7 +43,7 @@ class Config:
     @classmethod
     @lru_cache(maxsize=1)
     def _lg_path(cls):
-        lgpath = os.path.join(os.path.dirname(__file__), f'../logs/{cls.app_name}.log')
+        lgpath = os.path.join(os.path.dirname(__file__), f'../logs/{cls.client_config().get("app_name", "pyswee")}.log')
         if not os.path.isdir(os.path.dirname(lgpath)):
             os.mkdir(os.path.dirname(lgpath))
         return lgpath
@@ -71,19 +71,33 @@ class Config:
         if not os.path.isfile(cfg_path):
             allconfigs = {}
             allconfigs['log'] = {'log_level':'DEBUG', 'log_handler': ['stdout']}
+            allconfigs['client'] = {'app_name': cls.app_name}
             cls.save(allconfigs)
             return allconfigs
 
         with open(cfg_path, 'r') as f:
             allconfigs = json.load(f)
 
-        cls._check_encrypted(allconfigs)
+        if cls._check_encrypted(allconfigs):
+            cls.save(allconfigs)
 
         return allconfigs
 
     @classmethod
+    def client_config(cls):
+        return cls.all_configs().get('client', {})
+
+    @classmethod
     def _check_encrypted(cls, cfg):
-        pass
+        encrypted = False
+        for k, v in cfg.items():
+            if isinstance(v, dict):
+                encrypted |= cls._check_encrypted(v)
+            elif k == 'password' and not v.startswith('*'):
+                cfg[k] = cls.simple_encrypt(v)
+                encrypted = True
+
+        return encrypted
 
 
 logging.basicConfig(
