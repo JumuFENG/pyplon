@@ -98,6 +98,10 @@ class Config:
                 encrypted = True
 
         return encrypted
+    
+    @classmethod
+    def users_file(cls):
+        return os.path.join(os.path.dirname(cls._cfg_path()), 'users.json')
 
 
 logging.basicConfig(
