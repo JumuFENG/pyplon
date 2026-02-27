@@ -52,7 +52,7 @@ class Config:
     def log_level(cls):
         lvl = cls.all_configs().get("log", {}).get("log_level", "INFO").upper()
         return logging._nameToLevel[lvl]
-    
+
     @classmethod
     def log_handler(cls):
         handlers = cls.all_configs().get("log", {}).get('log_handler', ['file', 'stdout'])
@@ -98,30 +98,37 @@ class Config:
                 encrypted = True
 
         return encrypted
-    
+
+    @classmethod
+    def data_dir(cls):
+        ddir = os.path.join(os.path.dirname(__file__), '../data')
+        if not os.path.isdir(ddir):
+            os.mkdir(ddir)
+        return ddir
+
+    @classmethod
+    def data_file(cls, name, default={}):
+        dfile = os.path.join(cls.data_dir(), name)
+        if not os.path.isfile(dfile):
+            with open(dfile, 'w') as f:
+                json.dump(default, f)
+        return dfile
+
     @classmethod
     def users_file(cls):
-        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'users.json')
-        if not os.path.isfile(ufile):
-            with open(ufile, 'w') as f:
-                json.dump([], f)
-        return ufile
-    
+        return cls.data_file('users.json', default=[])
+
     @classmethod
     def user_stocks_file(cls):
-        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'user_stocks.json')
-        if not os.path.isfile(ufile):
-            with open(ufile, 'w') as f:
-                json.dump({}, f)
-        return ufile
-    
+        return cls.data_file('user_stocks.json', default={})
+
     @classmethod
     def user_deals_file(cls):
-        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'user_deals.json')
-        if not os.path.isfile(ufile):
-            with open(ufile, 'w') as f:
-                json.dump([], f)
-        return ufile
+        return cls.data_file('user_deals.json', default={})
+
+    @classmethod
+    def holiday_file(cls):
+        return cls.data_file('holidays.json', default=[])
 
 
 logging.basicConfig(

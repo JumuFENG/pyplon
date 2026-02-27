@@ -1,13 +1,13 @@
 import json
-from cachetools import lru_cache
+from functools import lru_cache
 from app.lofig import Config, logger
 
 
 class UserManager:
     """用户管理类"""
 
-    @lru_cache(maxsize=1)
     @staticmethod
+    @lru_cache(maxsize=1)
     def get_users():
         """获取用户列表"""
         with open(Config.users_file(), 'r') as f:

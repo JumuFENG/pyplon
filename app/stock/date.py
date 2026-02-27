@@ -4,21 +4,21 @@ import datetime
 import requests
 from functools import lru_cache
 from bs4 import BeautifulSoup
-from app.lofig import logger
+from app.lofig import logger, Config
 
 
 class TradingDate:
     """交易日历管理类"""
-    
+
     @staticmethod
     def today(sep='-'):
         return datetime.datetime.now().strftime(f'%Y{sep}%m{sep}%d')
-    
+
     @staticmethod
     @lru_cache(maxsize=1)
     def _holidays():
         """获取节假日列表"""
-        holidayfile = TradingDate.holidayfile()
+        holidayfile = Config.holiday_file()
         if os.path.isfile(holidayfile):
             try:
                 with open(holidayfile, 'r') as f:
@@ -26,7 +26,7 @@ class TradingDate:
             except Exception as e:
                 logger.warning(f"Failed to load holidays: {e}")
         return []
-    
+
     @staticmethod
     @lru_cache(maxsize=1)
     def max_trading_date():
@@ -35,7 +35,7 @@ class TradingDate:
         while TradingDate.is_holiday(d.strftime('%Y-%m-%d')):
             d -= datetime.timedelta(days=1)
         return d.strftime('%Y-%m-%d')
-    
+
     @staticmethod
     def is_holiday(date=None):
         """判断是否为节假日"""
@@ -46,14 +46,14 @@ class TradingDate:
         if date in TradingDate._holidays() or datetime.datetime.strptime(date, '%Y-%m-%d').weekday() >= 5:
             return True
         return False
-    
+
     @staticmethod
     def is_trading_date(date):
         """判断是否为交易日"""
         if not date:
             return False
         return not TradingDate.is_holiday(date)
-    
+
     @classmethod
     def recent_trading_dates(cls, n):
         """获取最近N个交易日列表"""
@@ -87,11 +87,7 @@ class TradingDate:
         if len(cn_holidays) > 0:
             holidays = cls._holidays()
             holidays.extend([h[0] for h in cn_holidays])
-            with open(cls.holidayfile(), 'w') as f:
+            with open(Config.holiday_file(), 'w') as f:
                 return json.dump(holidays, f)
             cls._holidays.cache_clear()
         return cls._holidays()
-
-    @staticmethod
-    def holidayfile():
-        return os.path.join(os.path.dirname(__file__), '../../config/holidays.json')

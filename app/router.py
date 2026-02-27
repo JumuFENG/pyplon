@@ -32,7 +32,7 @@ async def stock_query(
     bks: Optional[str] = Query(None, description="板块代码"),
     days: Optional[int] = Query(None, description="天数"),
     steps: Optional[int] = Query(None, description="连板次数"),
-) -> Dict[str, Any]:
+) -> Any:
     """
     股票数据查询接口
     
@@ -76,7 +76,9 @@ async def stock_query(
     if act == 'watchings':
         return usm.get_watchings(user)
     if act == "deals":
-        return await usm.get_deals(user)
+        return usm.get_deals(user)
+    if act == "planeddividen":
+        return []
     return {}
 
 
