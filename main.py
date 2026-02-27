@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from app.lofig import Config, logging, logger
 from app.router import router as stk_router
 from app.api import router as api_router
+from app.users import UserManager as um
 
 cfg = Config.client_config()
 app = FastAPI(title=cfg.get('app_name', 'pyswee'))
@@ -24,9 +25,7 @@ def get_userbind(
     - onlystock: 1 表示仅返回股票账户 deprecated，暂不使用
     - 返回: 账户数组，每个账户包含 name, username, realcash 等字段
     """
-    with open(Config.users_file(), 'r') as f:
-        users = json.load(f)
-    return [u for u in users if u.get('parent_id', 0) == 1]
+    return um.get_users()
 
 
 if __name__ == '__main__':

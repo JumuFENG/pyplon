@@ -101,7 +101,27 @@ class Config:
     
     @classmethod
     def users_file(cls):
-        return os.path.join(os.path.dirname(cls._cfg_path()), 'users.json')
+        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'users.json')
+        if not os.path.isfile(ufile):
+            with open(ufile, 'w') as f:
+                json.dump([], f)
+        return ufile
+    
+    @classmethod
+    def user_stocks_file(cls):
+        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'user_stocks.json')
+        if not os.path.isfile(ufile):
+            with open(ufile, 'w') as f:
+                json.dump({}, f)
+        return ufile
+    
+    @classmethod
+    def user_deals_file(cls):
+        ufile = os.path.join(os.path.dirname(cls._cfg_path()), 'user_deals.json')
+        if not os.path.isfile(ufile):
+            with open(ufile, 'w') as f:
+                json.dump([], f)
+        return ufile
 
 
 logging.basicConfig(

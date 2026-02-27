@@ -1,103 +1,25 @@
+import json
 from fastapi import APIRouter, Query, Form, Body, Header, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
+from functools import lru_cache
+import emxg
+import stockrt as srt
+from app.lofig import Config, logger
+from app.users import UserManager as um
+from app.stock.manager import StockManager as usm
 
 
-class WatchingsResponse(BaseModel):
-    """关注股票列表响应"""
-    pass
+@lru_cache(maxsize=1)
+def query_f4lost():
+    pdata = emxg.search('连续4个季度亏损大于1000万元')
+    pdata = pdata.rename(columns={'代码': 'code'})
+    return [srt.get_fullcode(code[:6]) for code in pdata['code']]
 
 
-class UserBindResponse(BaseModel):
-    """用户绑定响应"""
-    pass
-
-
-class TradingDatesResponse(BaseModel):
-    """交易日历响应"""
-    pass
-
-
-class CaptchaResponse(BaseModel):
-    """验证码识别响应"""
-    pass
-
-
-class DealsResponse(BaseModel):
-    """成交记录响应"""
-    pass
-
-
-
-# ==================== pyiun (dataservice) 接口 ====================
-# pyiun 通过 dataservice.server 配置，提供的接口用于:
-# - 涨停天数查询
-# - 竞价数据保存
-# - 板块/股票数据查询
-# - 资金流向查询
-# - 财务数据查询
 
 router = APIRouter(prefix="/stock", tags=["dataservice"])
 
-
-# ==================== Response Models ====================
-
-class ZdtInDaysResponse(BaseModel):
-    """涨停天数查询响应"""
-    pass
-
-
-class BkIgnoredResponse(BaseModel):
-    """忽略板块查询响应"""
-    pass
-
-
-class PlannedDividendResponse(BaseModel):
-    """计划分红查询响应"""
-    pass
-
-
-class StockBksResponse(BaseModel):
-    """股票所属板块响应"""
-    pass
-
-
-class BkStocksResponse(BaseModel):
-    """板块成分股响应"""
-    pass
-
-
-class ZtStocksResponse(BaseModel):
-    """近期涨停股票响应"""
-    pass
-
-
-class HotBksResponse(BaseModel):
-    """热门板块响应"""
-    pass
-
-
-class HotStocksResponse(BaseModel):
-    """热门股票响应"""
-    pass
-
-
-class ZdtEmotResponse(BaseModel):
-    """涨停分布统计响应"""
-    pass
-
-
-class ZtStepsHistResponse(BaseModel):
-    """涨停连板统计响应"""
-    pass
-
-
-class F4LostResponse(BaseModel):
-    """财务异常股票响应"""
-    pass
-
-
-# ==================== Route Definitions ====================
 
 @router.get("")
 async def stock_query(
@@ -105,10 +27,11 @@ async def stock_query(
     codes: Optional[str] = Query(None, description="股票代码列表，逗号分隔"),
     date: Optional[str] = Query(None, description="日期，格式如 2026-02-25"),
     stocks: Optional[str] = Query(None, description="股票代码"),
+    accid: Optional[str] = Query(None, description="账户ID"),
+    acc: Optional[str] = Query(None, description="账户名称"),
     bks: Optional[str] = Query(None, description="板块代码"),
     days: Optional[int] = Query(None, description="天数"),
     steps: Optional[int] = Query(None, description="连板次数"),
-    save: Optional[int] = Query(None, description="是否保存"),
 ) -> Dict[str, Any]:
     """
     股票数据查询接口
@@ -142,7 +65,19 @@ async def stock_query(
       - save: 是否保存
     - watchings: 关注股票列表
     """
-    pass
+    user = None
+    if acc or accid:
+        user = um.get_user_by(acc=acc, accid=accid)
+
+    if act == 'rtbkchanges':
+        return []
+    if act == 'f4lost':
+        return query_f4lost()
+    if act == 'watchings':
+        return usm.get_watchings(user)
+    if act == "deals":
+        return await usm.get_deals(user)
+    return {}
 
 
 @router.get("/stock_fflow")
@@ -161,7 +96,7 @@ async def stock_fflow(
     返回: 资金流向数据数组
     格式: [[日期, 主力, 小单, 中单, 大单, 超大单, 净流入, 占比...], ...]
     """
-    pass
+    return []
 
 
 @router.post("")
@@ -169,9 +104,11 @@ async def stock_post(
     act: str = Form(...),
     date: Optional[str] = Form(None),
     acc: Optional[str] = Form(None),
-    auctions: Optional[str] = Form(None),
-    matched: Optional[str] = Form(None),
+    accid: Optional[str] = Form(None),
     data: Optional[str] = Form(None),
+    buysid: Optional[str] = Form(None),
+    sellsid: Optional[str] = Form(None),
+    code: Optional[str] = Form(None),
 ) -> Any:
     """
     股票数据提交接口
@@ -181,12 +118,44 @@ async def stock_post(
     - act: `deals`
         - acc: 账户名称
         - data: JSON 字符串化的成交记录数组
-
-    支持的操作:
-    - save_auction_details: 保存竞价详情
-      - date: 日期
-      - auctions: JSON 字符串化的竞价数据
-    - save_auction_matched: 保存竞价匹配结果
-      - matched: JSON 字符串化的匹配结果数组
+    - act: `strategy`
+        - acc: 账户名称
+        - code: 股票代码
+        - data: JSON 字符串化的策略配置
+    - act: 'save_auction_details':
+        # deprecated
+    - act: 'save_auction_matched':
+        # deprecated
     """
-    pass
+    if code:
+        code = code.lower()
+
+    user = None
+    if acc or accid:
+        user = um.get_user_by(acc=acc, accid=accid)
+
+    if act == 'deals':
+        await usm.add_deals(user, data)
+    elif act == 'fixdeals':
+        await usm.fix_deals(user, data)
+    elif act == 'forget':
+        await usm.forget_stock(user, code)
+    # elif act == 'costdog':
+    #     usm.save_costdog(data)
+    elif act == 'watch':
+        usm.watch_stock(user, code)
+    elif act == 'rmwatch':
+        usm.forget_stock(user, code)
+        bsid = buysid.split(',')
+        ssid = sellsid.split(',')
+        usm.remove_deals(user, code, bsid, ssid)
+    elif act == 'strategy':
+        if len(code) != 8:
+            code = srt.get_fullcode(code)
+        if data is None or len(data) == 0:
+            usm.remove_strategy(user, code)
+        else:
+            usm.save_strategy(user, code, data)
+    else:
+        logger.warning(f"Unknown act: {act}")
+    return {"status": "ok"}

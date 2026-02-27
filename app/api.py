@@ -17,9 +17,9 @@ def get_trading_dates(
 ) -> List[str]:
     """
     获取交易日历
-    
+
     GET /api/tradingdates?len=30
-    
+
     - len: 获取的天数
     - 返回: 日期数组 ["2026-02-20", "2026-02-21", ...]
     """
@@ -30,7 +30,7 @@ def _recognize_captcha(img: str) -> str:
     """识别验证码图片"""
     if img is None:
         raise HTTPException(status_code=400, detail="No img specified.")
-    
+
     # 处理图片格式
     if img.startswith('http'):
         import requests
@@ -43,19 +43,19 @@ def _recognize_captcha(img: str) -> str:
             img_data = base64.b64decode(img)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid image data.")
-    
+
     # 使用 ollama 识别
     ollama_instance = ollama_client(
         api_key=Config.client_config().get('ollama_api_key', None),
         model=Config.client_config().get('ollama_model', 'qwen2.5vl:7b')
     )
-    
+
     img_b64 = base64.b64encode(img_data).decode('utf-8')
     result = ollama_instance.img_to_text(img_b64)
-    
+
     if result is None:
         raise HTTPException(status_code=500, detail="Image recognition failed.")
-    
+
     return result
 
 
@@ -65,9 +65,9 @@ def get_captcha(
 ) -> str:
     """
     识别验证码图片 (GET)
-    
+
     GET /api/captcha?img={url_or_base64}
-    
+
     - img: 图片URL或base64编码的字符串
     - 返回: 识别到的验证码字符
     """
@@ -80,10 +80,10 @@ def post_captcha(
 ) -> str:
     """
     识别验证码图片 (POST)
-    
+
     POST /api/captcha
     Content-Type: application/x-www-form-urlencoded
-    
+
     - img: base64 编码的验证码图片
     - 返回: 识别到的验证码字符
     """
