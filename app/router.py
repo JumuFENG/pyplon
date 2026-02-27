@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Query, Form, Body, Header, Depends
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from pydantic import BaseModel
 from functools import lru_cache
 import emxg
@@ -16,6 +16,11 @@ def query_f4lost():
     pdata = pdata.rename(columns={'代码': 'code'})
     return [srt.get_fullcode(code[:6]) for code in pdata['code']]
 
+def normalize_codes(codes: Union[str, List[str]]) -> List[str]:
+    """标准化股票代码输入"""
+    if isinstance(codes, str):
+        return codes.split(',') if ',' in codes else [codes]
+    return codes if isinstance(codes, list) else [str(codes)]
 
 
 router = APIRouter(prefix="/stock", tags=["dataservice"])
@@ -35,9 +40,9 @@ async def stock_query(
 ) -> Any:
     """
     股票数据查询接口
-    
+
     GET /stock?act={action}&...
-    
+
     支持的操作 (act 参数):
     - zdtindays: 涨停天数查询
       - codes: 股票代码列表逗号分隔
@@ -89,12 +94,12 @@ async def stock_fflow(
 ) -> List[List[Any]]:
     """
     股票资金流向查询
-    
+
     GET /stock_fflow?code={code}&date={date}
-    
+
     - code: 股票代码
     - date: 开始日期 (可选)
-    
+
     返回: 资金流向数据数组
     格式: [[日期, 主力, 小单, 中单, 大单, 超大单, 净流入, 占比...], ...]
     """
@@ -114,7 +119,7 @@ async def stock_post(
 ) -> Any:
     """
     股票数据提交接口
-    
+
     POST /stock
     Content-Type: application/x-www-form-urlencoded
     - act: `deals`
@@ -161,3 +166,17 @@ async def stock_post(
     else:
         logger.warning(f"Unknown act: {act}")
     return {"status": "ok"}
+
+
+@router.get("/quotes")
+def stock_quotes(code: str = Query(..., min_length=6)):
+    """
+    获取股票报价数据
+
+    GET /stock/quotes?code={code}
+
+    - code: 股票代码，至少6位
+    - 返回: 股票报价数据对象
+    """
+    codes = normalize_codes(code)
+    return srt.quotes(codes)

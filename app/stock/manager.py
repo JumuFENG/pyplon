@@ -111,25 +111,36 @@ class StockManager:
         
         udeals = all_deals[user_id]
         
-        # 添加新记录 (去重)
+        # 添加或更新记录：若存在则更新，否则追加
         added_count = 0
+        updated_count = 0
         for deal in deals:
             bs = deal.get('tradeType', '')
             code = deal.get('code', '')
             sid = deal.get('sid', '')
-            dtime = deal.get('time', '')
-            
-            exists = any(
-                d.get('sid') == sid and d.get('code') == code and d.get('tradeType') == bs and d.get('time') == dtime
-                for d in udeals
-            )
-            if not exists:
+            dtime = deal.get('time', '').split(' ')[0]
+
+            found_index = None
+            for idx, d in enumerate(udeals):
+                if (
+                    d.get('sid') == sid and
+                    d.get('code') == code and
+                    d.get('tradeType') == bs and
+                    d.get('time', '').split(' ')[0] == dtime
+                ):
+                    found_index = idx
+                    break
+
+            if found_index is not None:
+                udeals[found_index].update(deal)
+                updated_count += 1
+            else:
                 udeals.append(deal)
                 added_count += 1
         
         all_deals[user_id] = udeals
         StockManager._save_user_deals(all_deals)
-        logger.info(f"User {user_id} added {added_count} deals")
+        logger.info(f"User {user_id} added {added_count} deals, updated {updated_count} deals")
     
     @staticmethod
     async def fix_deals(user, data: str):
@@ -158,7 +169,6 @@ class StockManager:
             for deal in udeals:
                 if deal.get('sid') == fix_data.get('sid'):
                     deal.update(fix_data)
-                    deal['fixed_at'] = datetime.now().isoformat()
                     break
         
         all_deals[user_id] = udeals
