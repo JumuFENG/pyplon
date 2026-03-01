@@ -7,7 +7,9 @@ import emxg
 import stockrt as srt
 from app.lofig import Config, logger
 from app.users import UserManager as um
+from app.stock.date import TradingDate
 from app.stock.manager import StockManager as usm
+from app.selector import SelectorsFactory as sfac
 
 
 @lru_cache(maxsize=1)
@@ -34,6 +36,7 @@ async def stock_query(
     stocks: Optional[str] = Query(None, description="股票代码"),
     accid: Optional[str] = Query(None, description="账户ID"),
     acc: Optional[str] = Query(None, description="账户名称"),
+    key: Optional[str] = Query(None, description="策略关键字"),
     bks: Optional[str] = Query(None, description="板块代码"),
     days: Optional[int] = Query(None, description="天数"),
     steps: Optional[int] = Query(None, description="连板次数"),
@@ -70,20 +73,32 @@ async def stock_query(
       - save: 是否保存
     - watchings: 关注股票列表
     """
-    user = None
-    if acc or accid:
-        user = um.get_user_by(acc=acc, accid=accid)
-
     if act == 'rtbkchanges':
+        return []
+    if act == "planeddividen":
         return []
     if act == 'f4lost':
         return query_f4lost()
+    if act == 'getistr':
+        if key == 'istrategy_zt1wb':
+            wbtbl = sfac.get('StockZt1WbSelector')
+            z1stks = wbtbl.dumpDataByDate()
+            td = TradingDate.max_traded_date()
+            return [x[1] for x in z1stks if x[0] == td]
+        elif key == 'istrategy_hsrzt0':
+            shs = sfac.get('StockHotStocksRetryZt0Selector')
+            return shs.dumpDataByDate()
+        else:
+            logger.warning(f"Unknown strategy key: {key}")
+            return []
+
+    user = None
+    if acc or accid:
+        user = um.get_user_by(acc=acc, accid=accid)
     if act == 'watchings':
         return usm.get_watchings(user)
     if act == "deals":
         return usm.get_deals(user)
-    if act == "planeddividen":
-        return []
     return {}
 
 

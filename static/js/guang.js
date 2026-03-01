@@ -238,7 +238,7 @@ const guang = {
                 let today = this.getTodayDate('-');
                 let lastTradeDate = today == d[1] ? d[0] : d[1];
 
-                return {data: {systemDate: d[1], isTradeDay: today == d[1], lastTradeDate}, expireTime: new Date(new Date(this.getTodayDate('-').split('-')).getTime() + 30*60*60000)};
+                return {data: {systemDate: today, isTradeDay: today == d[1], lastTradeDate}, expireTime: new Date(new Date(this.getTodayDate('-').split('-')).getTime() + 30*60*60000)};
             });
         }
         return this.fetchData(guang.tradedayurl, {}, 10*60*60000, r => {
