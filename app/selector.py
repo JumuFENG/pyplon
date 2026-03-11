@@ -309,10 +309,13 @@ class StockSelectorBase:
                 for row in existing_data.values():
                     writer.writerow(row)
         else:
-            # 直接写入新数据
-            with open(self.full_path, 'w', newline='') as f:
+            # 追加写入新数据
+            file_exists = os.path.isfile(self.full_path)
+            mode = 'a' if file_exists else 'w'
+            with open(self.full_path, mode, newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=self.column_names)
-                writer.writeheader()
+                if not file_exists:
+                    writer.writeheader()
                 for row_data in self.wkselected:
                     # row_data 是列表，按 column_names 顺序映射
                     row_dict = dict(zip(self.column_names, row_data))
@@ -359,32 +362,31 @@ class StockSelectorBase:
         if not TradingDate.is_trading_date(start):
             start = TradingDate.next_trading_date(start)
         length = TradingDate.calc_trading_days(start, TradingDate.today())
+        ofmt = srt.set_array_format('json')
         kd = srt.klines(code, 'd', length=length, fq=fqt)
+        srt.set_array_format(ofmt)
         kd = kd[code] if code in kd else None
         if kd is None or len(kd) == 0:
             return None
-        def safe_get(record, field_name, default=0.0, idx=0):
-            if isinstance(record, list):
-                if idx < len(record):
-                    val = record[idx]
-                else:
-                    val = default
-            else:
-                val = record.get(field_name, default)
+        def safe_get(record, field_name, default=0.0):
+            val = record.get(field_name, default)
             return type(default)(val)
+        def get_date(record):
+            dtime = record[0] if isinstance(record, list) else record.get('time', '')
+            return dtime.split(' ')[0] if ' ' in dtime else dtime
 
         return [KNode(
-            time=kl[0] if isinstance(kl, list) else kl['time'],
-            open=safe_get(kl, 'open', 0.0, 1),
-            close=safe_get(kl, 'close', 0.0, 2),
-            high=safe_get(kl, 'high', 0.0, 3),
-            low=safe_get(kl, 'low', 0.0, 4),
-            volume=safe_get(kl, 'volume', 0.0, 5),
-            amount=safe_get(kl, 'amount', 0.0, 6),
-            change=safe_get(kl, 'change', 0.0, 7),
-            change_px=safe_get(kl, 'change_px', 0.0, 8),
-            amplitude=safe_get(kl, 'amplitude', 0.0, 9),
-            turnover=safe_get(kl, 'turnover', 0.0, 10)
+            time=get_date(kl),
+            open=safe_get(kl, 'open', 0.0),
+            close=safe_get(kl, 'close', 0.0),
+            high=safe_get(kl, 'high', 0.0),
+            low=safe_get(kl, 'low', 0.0),
+            volume=safe_get(kl, 'volume', 0.0),
+            amount=safe_get(kl, 'amount', 0.0),
+            amplitude=safe_get(kl, 'amplitude', 0.0),
+            change=safe_get(kl, 'change', 0.0),
+            change_px=safe_get(kl, 'change_px', 0.0),
+            turnover=safe_get(kl, 'turnover', 0.0)
         ) for kl in kd]
 
     def check_lbc(self, allkl, zdf=10):
@@ -397,12 +399,12 @@ class StockSelectorBase:
                 lbc += 1
                 lid = i
             if i - lid >= 3:
-                if lbc > mxlbc:
+                if lbc >= mxlbc:
                     mxlbc = lbc
                     mxfid = fid
                     mxlid = lid
                 lbc = 0
-        if lbc > mxlbc:
+        if lbc >= mxlbc:
             mxlbc = lbc
             mxfid = fid
             mxlid = lid
@@ -573,7 +575,7 @@ class StockZt1WbSelector(StockSelectorBase):
         tlines = srt.tlines(self.wkstocks)
         picked = []
         for c, tls in tlines.items():
-            high = max([tl[1] for tl in tls])
+            high = max([tl[1] if isinstance(tl, (list, tuple)) else tl.get('price', 0) for tl in tls])
             firstidx = next((idx for idx, tl in enumerate(tls) if tl[1] == high), None)
             countless = len([tl for tl in tls[firstidx + 1:] if tl[1] < high])
             if firstidx > 215 or countless > 5:
@@ -622,10 +624,12 @@ class StockHotStocksRetryZt0Selector(StockSelectorBase):
                 for zd,days,step in ssel[c]:
                     self.wkstocks.append((c,zd,days,step,66))
         else:
-            orecs = self.query_values(['date', 'code', 'days', 'step', 'remdays'], lambda row: row['remdays'] > 0)
+            orecs = self.query_values(['date', 'code', 'days', 'step', 'remdays'], lambda row: int(row['remdays']) > 0)
             for d,c,days,step,rd in orecs:
                 if c in ssel:
                     del ssel[c]
+                days = int(days)
+                step = int(step)
                 allkl = self.get_kd_data(c, TradingDate.prev_trading_date(d, days*2), fqt=1)
                 lbc, fdate, ldate = self.check_lbc(allkl)
                 if lbc >= step and ldate != d and fdate < d:

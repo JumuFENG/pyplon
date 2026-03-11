@@ -85,4 +85,4 @@ class DailyUpdater():
         self.update_twice_selectors()
 
 if __name__ == '__main__':
-    DailyUpdater.update_selectors()
+    DailyUpdater.update_all()
