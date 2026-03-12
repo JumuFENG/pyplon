@@ -195,3 +195,45 @@ def stock_quotes(code: str = Query(..., min_length=6)):
     """
     codes = normalize_codes(code)
     return srt.quotes(codes)
+
+
+@router.get("/klines")
+def stock_klines(
+    code: str = Query(..., min_length=6),
+    kltype: str = Query('d', description="k线类型"),
+    length: int = Query(30, description="获取天数", gt=0),
+    fqt: int = Query(0, description="是否复权"),
+    start: str = Query(None, min_length=8, max_length=10)
+):
+    """
+    获取股票K线数据
+
+    GET /stock/klines?code={code}&kltype={kltype}&length={length}&fqt={fqt}&start={start}
+
+    - code: 股票代码，至少6位
+    - kltype: K线类型，默认为日线 (d)，可选值包括 d, w, m 等
+    - length: 获取的K线数量，默认为30，必须大于0
+    - fqt: 是否复权，0表示不复权，1表示前复权，2表示后复权
+    - start: 起始日期，格式为YYYY-MM-DD或YYYYMMDD
+
+    返回: K线数据数组，每条数据包含日期、开盘价、最高价、最低价、收盘价、成交量等信息
+    """
+    codes = normalize_codes(code)
+    if start:
+        if len(start) == 8:
+            start = f"{start[:4]}-{start[4:6]}-{start[6:]}"
+        length = TradingDate.calc_trading_days(start, TradingDate.max_trading_date())
+    return srt.klines(codes, kltype=kltype, length=length, fqt=fqt)
+
+@router.get("/tlines")
+def stock_tlines(code: str = Query(..., min_length=6)):
+    """
+    获取股票分时数据
+
+    GET /stock/tlines?code={code}
+
+    - code: 股票代码，至少6位
+    - 返回: 分时数据
+    """
+    codes = normalize_codes(code)
+    return srt.tlines(codes)
