@@ -440,8 +440,8 @@ class StockListPanelPage extends RadioAnchorPage {
                     return vb - va;
                 });
             } else {
-                const fs = Object.values(stocks).filter(s => !s.strategies?.buydetail);
-                stocks = Object.values(stocks).filter(s => s.strategies?.buydetail).sort((a, b) => {
+                const fs = Object.values(stocks).filter(s => !s.strategies?.buydetail || s.strategies.buydetail.length == 0);
+                stocks = Object.values(stocks).filter(s => s.strategies?.buydetail && s.strategies.buydetail.length > 0).sort((a, b) => {
                     return a.strategies.buydetail.slice(-1)[0].date - b.strategies.buydetail.slice(-1)[0].date;
                 });
                 stocks = stocks.concat(fs);
@@ -450,7 +450,7 @@ class StockListPanelPage extends RadioAnchorPage {
             for (const s of stocks) {
                 if (!account.realcash && (new Date()).getHours() >= 15) {
                     this.fix_date_price(s);
-                    if (s.strategies?.buydetail && s.strategies.buydetail.slice(-1)[0].date >= guang.getTodayDate('-')) {
+                    if (s.strategies?.buydetail && s.strategies.buydetail.length > 0 && s.strategies.buydetail.slice(-1)[0].date >= guang.getTodayDate('-')) {
                         const infixing = this.enable_track_strategies(s.strategies.strategies);
                         if (infixing) {
                             s.strategies.infixing = true;
