@@ -1,3 +1,4 @@
+import os
 import json
 from fastapi import FastAPI, Query, Header
 from fastapi.responses import RedirectResponse
@@ -16,8 +17,9 @@ app.include_router(api_router)
 app.include_router(stk_router)
 
 # 挂载静态文件
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/html", StaticFiles(directory="html", html=True), name="html")
+folder = os.path.dirname(__file__)
+app.mount("/static", StaticFiles(directory=f"{folder}/static"), name="static")
+app.mount("/html", StaticFiles(directory=f"{folder}/html", html=True), name="html")
 
 
 @app.get("/")

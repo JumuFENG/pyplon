@@ -116,7 +116,7 @@ class StockManager:
         updated_count = 0
         for deal in deals:
             bs = deal.get('tradeType', '')
-            code = deal.get('code', '')
+            code = deal.get('code', '').lower()
             sid = deal.get('sid', '')
             dtime = deal.get('time', '').split(' ')[0]
 

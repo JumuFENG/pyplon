@@ -190,7 +190,7 @@ class StockZtInfo(EmRequest):
 
 class StockSelectorBase:
     """股票选择器基类，定义接口和通用方法"""
-    
+
     def __init__(self, max_workers: int = 2) -> None:
         self.max_workers = max_workers
         self.wkstocks = []
@@ -201,7 +201,7 @@ class StockSelectorBase:
     @property
     def full_path(self):
         return os.path.join(os.path.realpath(Config.data_dir()), self.save_file)
-    
+
     def max_date(self):
         if os.path.isfile(self.full_path):
             with open(self.full_path, 'r') as f:
@@ -229,7 +229,7 @@ class StockSelectorBase:
         with open(self.full_path, 'r', newline='') as f:
             reader = csv.DictReader(f)
             records = [row for row in reader if not all(cond(row) for cond in conditions)]
-        
+
         with open(self.full_path, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.column_names)
             writer.writeheader()
@@ -341,8 +341,14 @@ class StockSelectorBase:
             for item in self.wkstocks:
                 self.task_processing(item)
         else:
+            def safe_task_processing(item):
+                try:
+                    self.task_processing(item)
+                except Exception:
+                    logger.error('error in task_processing %s', format_exc())
+
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                executor.map(self.task_processing, self.wkstocks)
+                executor.map(safe_task_processing, self.wkstocks)
 
         # 记录执行时间
         elapsed = datetime.now() - ctime
@@ -420,7 +426,7 @@ class StockZtDaily(StockSelectorBase):
     @property
     def ztinfo(self):
         return StockZtInfo()
-    
+
     @property
     def jqkinfo(self):
         return StockZtInfo10jqka()

@@ -388,7 +388,7 @@ class StockListPanelPage extends RadioAnchorPage {
         if (ustocks.account(this.acc).stocks === undefined) {
             let stocks = await this.queryUserStocks();
             let deals = await this.queryUserDeals();
-            deals = deals.map( d => {d.type = d.tradeType, d.date = d.time; return d;});
+            deals = deals.map( d => {d.type = d.tradeType, d.date = d.time, d.code = d.code.toLowerCase(); return d;});
             for (const c in stocks) {
                 stocks[c].deals = deals.filter(d => d.code == c);
             }

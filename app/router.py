@@ -223,7 +223,7 @@ def stock_klines(
         if len(start) == 8:
             start = f"{start[:4]}-{start[4:6]}-{start[6:]}"
         length = TradingDate.calc_trading_days(start, TradingDate.max_trading_date())
-    return srt.klines(codes, kltype=kltype, length=length, fqt=fqt)
+    return srt.klines(codes, kltype=kltype, length=length, fq=fqt)
 
 @router.get("/tlines")
 def stock_tlines(code: str = Query(..., min_length=6)):
